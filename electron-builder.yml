@@ -1,0 +1,20 @@
+appId: com.modao.desktop
+productName: Modao
+directories:
+  output: release
+  buildResources: resources
+files:
+  - dist/**/*
+  - resources/**/*
+  - package.json
+win:
+  target:
+    - target: nsis
+      arch:
+        - arm64
+  icon: resources/icon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

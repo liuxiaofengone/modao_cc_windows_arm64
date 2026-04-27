@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "WebFetch(domain:modao.cc)",
+      "WebSearch",
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Bash(ELECTRON_MIRROR=\"https://npmmirror.com/mirrors/electron/\" npm install *)",
+      "Bash(curl *)",
+      "Bash(npx tsc *)",
+      "Bash(npx electron *)",
+      "Bash(npm run *)",
+      "Bash(node *)"
+    ]
+  }
+}
