@@ -80,8 +80,14 @@ async function run() {
   }
   
   if (!sourceAsar) {
-    console.error('Error: Could not find original app.asar.');
-    console.error('Please make sure you have the official x86 version installed, or copy its resources/app.asar directly to this directory.');
+    console.error('\n❌ 错误: 未能找到原版墨刀的 app.asar 核心文件！');
+    console.error('------------------------------------------------------------------');
+    console.error('请按照以下步骤获取该文件：');
+    console.error('1. 下载墨刀官方 Windows x86 绿色运行包：');
+    console.error('   👉 https://cdn-release.modao.cc/desktop/prod-1.5.4/win32/modao-win32-ia32-1.5.4.zip');
+    console.error('2. 解压下载的 zip 压缩包，在其 resources 目录下找到 app.asar 文件。');
+    console.error('3. 将该 app.asar 文件复制到当前构建项目的根目录下。');
+    console.error('------------------------------------------------------------------\n');
     process.exit(1);
   }
   

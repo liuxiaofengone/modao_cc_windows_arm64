@@ -33,8 +33,11 @@ Electron 架构的应用极其适合在 ARM 平台上作跨架构重构，它分
    git clone https://cnb.cool/liuxiaofengone/modao_cc_windows_arm64.git
    cd modao_cc_windows_arm64
    ```
-2. 确保在本地能访问到原版 Windows x86 墨刀客户端的 `resources/app.asar` 文件。
-   > 本构建脚本在运行时，会默认自动检测同级目录下的 `../modao-win32/modao-win32-ia32-1.5.4/resources/app.asar` 路径。如果你已放置在此处，无需任何操作。
+2. 获取原版墨刀 `app.asar` 核心文件：
+   * **官方 x86 绿色运行包下载链接**：[modao-win32-ia32-1.5.4.zip](https://cdn-release.modao.cc/desktop/prod-1.5.4/win32/modao-win32-ia32-1.5.4.zip)
+   * 下载并解压缩后，在其 `resources/` 目录下即可找到 `app.asar`。
+   * 本构建脚本在运行时，会默认自动检测同级目录下的 `../modao-win32/modao-win32-ia32-1.5.4/resources/app.asar` 路径。
+   * **或者**，你也可以直接将这个提取出来的 `app.asar` 文件复制到本项目根目录下。
 
 ### 2. 一键构建
 
