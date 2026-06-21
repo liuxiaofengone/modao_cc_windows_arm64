@@ -1,20 +1,21 @@
 {
-  "name": "modao-desktop",
-  "version": "1.0.2",
-  "description": "墨刀桌面客户端 - Windows ARM64",
-  "main": "dist/main/index.js",
+  "name": "modao-cc-windows-arm64",
+  "version": "1.0.0",
+  "description": "Windows ARM64 native client builder for Modao (墨刀)",
+  "main": "build.js",
   "scripts": {
-    "build": "tsc && npm run copy-assets",
-    "copy-assets": "node -e \"require('fs').copyFileSync('src/renderer/index.html','dist/renderer/index.html');require('fs').copyFileSync('src/renderer/styles.css','dist/renderer/styles.css')\"",
-    "start": "npm run build && electron .",
-    "pack": "npm run build && cross-env ELECTRON_MIRROR=https://mirrors.huaweicloud.com/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --dir",
-    "dist": "npm run build && cross-env ELECTRON_MIRROR=https://mirrors.huaweicloud.com/electron/ ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder"
+    "build": "node build.js"
   },
-  "devDependencies": {
-    "cross-env": "^10.1.0",
-    "electron": "^35.0.0",
-    "electron-builder": "^25.1.8",
-    "sharp": "^0.34.5",
-    "typescript": "^5.9.3"
+  "keywords": [
+    "modao",
+    "arm64",
+    "windows",
+    "electron"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "adm-zip": "^0.5.10",
+    "rcedit": "^4.0.1"
   }
 }
