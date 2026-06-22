@@ -1,6 +1,8 @@
 # 墨刀 Windows ARM64 原生桌面客户端构建工具
 
-这是一个能将官方发布的 Windows x86 (ia32) 版本的 [墨刀 (Modao)](https://modao.cc) 桌面客户端，一键重构成原生 **Windows ARM64** 程序的一键构建工具。
+> **项目说明**：本工具用于构建 **墨刀的 Windows ARM64 版本的客户端**。
+
+这是一个能将官方发布的 Windows x86 (ia32) 版本的 [墨刀 (Modao)](https://modao.cc) 桌面客户端，一键重构成原生 **Windows ARM64** 程序的开源构建工具。
 
 适用于骁龙 X Elite / X Plus 以及各类 Windows 11 on ARM 设备的本地原生体验，彻底摆脱系统仿真的电量消耗与卡顿，带来流畅的绘图及编辑体验。
 
