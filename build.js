@@ -201,13 +201,30 @@ async function run() {
   
   // 2. Download corresponding Electron ARM64 runtime
   const arm64ZipPath = path.resolve('electron-arm64.tmp.zip');
-  const arm64DownloadUrl = `https://npmmirror.com/mirrors/electron/${electronVersion}/electron-v${electronVersion}-win32-arm64.zip`;
+  const electronMirrors = [
+    'https://npmmirror.com/mirrors/electron/',
+    'https://mirrors.huaweicloud.com/electron/',
+    'https://mirrors.cloud.tencent.com/electron/'
+  ];
   
-  console.log(`Downloading Electron v${electronVersion} Windows ARM64 from npmmirror...`);
-  try {
-    await downloadFile(arm64DownloadUrl, arm64ZipPath);
-  } catch (err) {
-    console.error('Failed to download Electron ARM64 runtime:', err);
+  let downloaded = false;
+  for (const mirror of electronMirrors) {
+    const arm64DownloadUrl = `${mirror}${electronVersion}/electron-v${electronVersion}-win32-arm64.zip`;
+    console.log(`Downloading Electron v${electronVersion} Windows ARM64 from mirror: ${mirror}...`);
+    try {
+      await downloadFile(arm64DownloadUrl, arm64ZipPath);
+      downloaded = true;
+      break;
+    } catch (err) {
+      console.warn(`[WARNING] Failed to download from mirror ${mirror}: ${err.message}. Trying next mirror...`);
+      if (fs.existsSync(arm64ZipPath)) {
+        try { fs.unlinkSync(arm64ZipPath); } catch (e) {}
+      }
+    }
+  }
+  
+  if (!downloaded) {
+    console.error('Error: Failed to download Electron ARM64 runtime from all mirrors.');
     process.exit(1);
   }
   
