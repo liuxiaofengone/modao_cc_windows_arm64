@@ -4,7 +4,8 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 const AdmZip = require('adm-zip');
-const { rcedit } = require('rcedit');
+const rceditModule = require('rcedit');
+const rcedit = typeof rceditModule === 'function' ? rceditModule : rceditModule.rcedit;
 
 // Helper to copy files
 function copyFile(src, dest) {
@@ -12,14 +13,58 @@ function copyFile(src, dest) {
   fs.copyFileSync(src, dest);
 }
 
-// Redirect-aware HTTP/HTTPS download function with progress bar
+// Fetch helper for HTML content
+function fetchHtml(pageUrl) {
+  return new Promise((resolve, reject) => {
+    https.get(pageUrl, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return fetchHtml(res.headers.location).then(resolve).catch(reject);
+      }
+      if (res.statusCode !== 200) {
+        return reject(new Error(`Failed to fetch page (Status: ${res.statusCode})`));
+      }
+      let html = '';
+      res.on('data', (chunk) => { html += chunk; });
+      res.on('end', () => resolve(html));
+    }).on('error', reject);
+  });
+}
+
+// Parse download link and version from official download page
+async function getLatestX86ZipInfo() {
+  const downloadsPage = 'https://modao.cc/feature/downloads.html';
+  console.log(`Fetching Modao downloads page: ${downloadsPage}...`);
+  try {
+    const html = await fetchHtml(downloadsPage);
+    // Match data-href="/desktop/prod-x.y.z/win32/modao-win32-ia32-x.y.z.zip"
+    const match = html.match(/data-href="([^"]*?ia32[^"]*?\.zip)"/);
+    if (match && match[1]) {
+      let relativeUrl = match[1];
+      if (!relativeUrl.startsWith('http')) {
+        relativeUrl = 'https://cdn-release.modao.cc' + relativeUrl;
+      }
+      const versionMatch = relativeUrl.match(/modao-win32-ia32-([\d\.]+)\.zip/);
+      const version = versionMatch ? versionMatch[1] : '1.5.4';
+      return { url: relativeUrl, version };
+    }
+  } catch (err) {
+    console.warn('Warning: Failed to fetch latest downloads page. Using fallback link.', err.message);
+  }
+  
+  return {
+    url: 'https://cdn-release.modao.cc/desktop/prod-1.5.4/win32/modao-win32-ia32-1.5.4.zip',
+    version: '1.5.4'
+  };
+}
+
+// Redirect-aware HTTP/HTTPS downloader with progress bar
 function downloadFile(fileUrl, targetPath) {
   return new Promise((resolve, reject) => {
     const parsedUrl = url.parse(fileUrl);
     const protocol = parsedUrl.protocol === 'https:' ? https : http;
 
     protocol.get(fileUrl, (response) => {
-      // Follow 3xx redirects
+      // Follow redirects
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         return downloadFile(response.headers.location, targetPath).then(resolve).catch(reject);
       }
@@ -61,67 +106,130 @@ function downloadFile(fileUrl, targetPath) {
 }
 
 async function run() {
-  const electronVersion = '32.1.0';
-  const downloadUrl = `https://npmmirror.com/mirrors/electron/${electronVersion}/electron-v${electronVersion}-win32-arm64.zip`;
-  const zipPath = path.resolve('electron-arm64.tmp.zip');
   const distDir = path.resolve('dist/modao-win32-arm64');
+  const tempExtractedDir = path.resolve('dist/temp-extracted');
+  const x86ZipTmpPath = path.resolve('modao-x86-temp.tmp.zip');
   
-  // 1. Detect app.asar location
+  // Clean up any stale temp directories
+  if (fs.existsSync(tempExtractedDir)) {
+    fs.rmSync(tempExtractedDir, { recursive: true, force: true });
+  }
+  
+  // 1. Detect if app.asar is already present locally
   const defaultAsarPaths = [
     path.resolve('../modao-win32/modao-win32-ia32-1.5.4/resources/app.asar'),
     path.resolve('./app.asar')
   ];
   let sourceAsar = '';
+  let electronVersion = '32.1.0'; // Default
+  let modaoVersion = '1.5.4'; // Default
+  
   for (const p of defaultAsarPaths) {
     if (fs.existsSync(p)) {
       sourceAsar = p;
+      const versionFile = path.join(path.dirname(p), '../version');
+      if (fs.existsSync(versionFile)) {
+        electronVersion = fs.readFileSync(versionFile, 'utf8').trim();
+      }
       break;
     }
   }
   
-  if (!sourceAsar) {
-    console.error('\n❌ 错误: 未能找到原版墨刀的 app.asar 核心文件！');
-    console.error('------------------------------------------------------------------');
-    console.error('请按照以下步骤获取该文件：');
-    console.error('1. 下载墨刀官方 Windows x86 绿色运行包：');
-    console.error('   👉 https://cdn-release.modao.cc/desktop/prod-1.5.4/win32/modao-win32-ia32-1.5.4.zip');
-    console.error('2. 解压下载的 zip 压缩包，在其 resources 目录下找到 app.asar 文件。');
-    console.error('3. 将该 app.asar 文件复制到当前构建项目的根目录下。');
-    console.error('------------------------------------------------------------------\n');
-    process.exit(1);
+  if (sourceAsar) {
+    console.log(`Found local app.asar at: ${sourceAsar}`);
+    console.log(`Using matched Electron version: ${electronVersion}`);
+  } else {
+    console.log('No local app.asar detected. Checking latest version from Modao official site...');
+    const x86Info = await getLatestX86ZipInfo();
+    console.log(`Latest Modao version: ${x86Info.version}`);
+    console.log(`Download URL: ${x86Info.url}`);
+    modaoVersion = x86Info.version;
+    
+    // Download official x86 package
+    console.log('Downloading Modao official x86 package...');
+    try {
+      await downloadFile(x86Info.url, x86ZipTmpPath);
+    } catch (err) {
+      console.error('Failed to download official x86 package:', err);
+      process.exit(1);
+    }
+    
+    // Partially extract app.asar and version file from the x86 zip package
+    console.log('Extracting app.asar and version files from the package...');
+    try {
+      const zip = new AdmZip(x86ZipTmpPath);
+      const zipEntries = zip.getEntries();
+      fs.mkdirSync(tempExtractedDir, { recursive: true });
+      
+      let foundAsar = false;
+      let foundVersion = false;
+      
+      zipEntries.forEach((entry) => {
+        if (entry.entryName.endsWith('resources/app.asar')) {
+          zip.extractEntryTo(entry.entryName, tempExtractedDir, false, true);
+          foundAsar = true;
+        }
+        if (entry.entryName.endsWith('version')) {
+          zip.extractEntryTo(entry.entryName, tempExtractedDir, false, true);
+          foundVersion = true;
+        }
+      });
+      
+      if (!foundAsar) {
+        throw new Error('Could not find resources/app.asar inside the zip package.');
+      }
+      
+      sourceAsar = path.join(tempExtractedDir, 'app.asar');
+      
+      if (foundVersion) {
+        const verPath = path.join(tempExtractedDir, 'version');
+        electronVersion = fs.readFileSync(verPath, 'utf8').trim();
+      }
+      console.log('Successfully extracted app.asar!');
+      console.log(`Target Electron Version: ${electronVersion}`);
+      
+    } catch (err) {
+      console.error('Failed to parse zip package:', err);
+      if (fs.existsSync(x86ZipTmpPath)) fs.unlinkSync(x86ZipTmpPath);
+      process.exit(1);
+    } finally {
+      if (fs.existsSync(x86ZipTmpPath)) {
+        fs.unlinkSync(x86ZipTmpPath);
+      }
+    }
   }
   
-  console.log(`Found original app.asar at: ${sourceAsar}`);
+  // 2. Download corresponding Electron ARM64 runtime
+  const arm64ZipPath = path.resolve('electron-arm64.tmp.zip');
+  const arm64DownloadUrl = `https://npmmirror.com/mirrors/electron/${electronVersion}/electron-v${electronVersion}-win32-arm64.zip`;
   
-  // 2. Download Electron ARM64 runtime
   console.log(`Downloading Electron v${electronVersion} Windows ARM64 from npmmirror...`);
   try {
-    await downloadFile(downloadUrl, zipPath);
+    await downloadFile(arm64DownloadUrl, arm64ZipPath);
   } catch (err) {
-    console.error('Failed to download Electron runtime:', err);
+    console.error('Failed to download Electron ARM64 runtime:', err);
     process.exit(1);
   }
   
-  // 3. Extracting Zip
-  console.log(`Extracting Electron runtime to ${distDir}...`);
+  // 3. Extract ARM64 runtime
+  console.log(`Extracting Electron ARM64 runtime to ${distDir}...`);
   if (fs.existsSync(distDir)) {
     fs.rmSync(distDir, { recursive: true, force: true });
   }
   fs.mkdirSync(distDir, { recursive: true });
   
   try {
-    const zip = new AdmZip(zipPath);
+    const zip = new AdmZip(arm64ZipPath);
     zip.extractAllTo(distDir, true);
     console.log('Extraction completed!');
   } catch (err) {
-    console.error('Failed to extract zip file:', err);
-    if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
+    console.error('Failed to extract ARM64 runtime:', err);
+    if (fs.existsSync(arm64ZipPath)) fs.unlinkSync(arm64ZipPath);
     process.exit(1);
-  }
-  
-  // Clean up zip
-  if (fs.existsSync(zipPath)) {
-    fs.unlinkSync(zipPath);
+  } finally {
+    if (fs.existsSync(arm64ZipPath)) {
+      fs.unlinkSync(arm64ZipPath);
+    }
   }
   
   // 4. Copy app.asar to destination
@@ -129,7 +237,11 @@ async function run() {
   console.log(`Copying app.asar to ${targetAsar}...`);
   copyFile(sourceAsar, targetAsar);
   
-  // 5. Modify executable resource properties and rename
+  // 5. Write version file
+  const targetVersion = path.join(distDir, 'version');
+  fs.writeFileSync(targetVersion, electronVersion);
+  
+  // 6. Modify executable resource properties and rename
   const rawExe = path.join(distDir, 'electron.exe');
   const targetExe = path.join(distDir, 'Mockitt.exe');
   const iconPath = path.resolve('icon.ico');
@@ -141,18 +253,17 @@ async function run() {
       'version-string': {
         CompanyName: 'MockingBot LLC',
         FileDescription: 'Mockitt',
-        FileVersion: '1.5.4',
-        ProductVersion: '1.5.4',
+        FileVersion: modaoVersion,
+        ProductVersion: modaoVersion,
         LegalCopyright: 'Copyright \u00A9 2025 MockingBot LLC',
         ProductName: 'Mockitt',
         InternalName: 'Mockitt',
         OriginalFilename: 'Mockitt.exe'
       },
-      'file-version': '1.5.4',
-      'product-version': '1.5.4'
+      'file-version': modaoVersion,
+      'product-version': modaoVersion
     });
     
-    // Rename electron.exe -> Mockitt.exe
     fs.renameSync(rawExe, targetExe);
     console.log('Successfully renamed electron.exe to Mockitt.exe');
   } catch (err) {
@@ -160,9 +271,15 @@ async function run() {
     process.exit(1);
   }
   
+  // Cleanup temp extracted dir if any
+  if (fs.existsSync(tempExtractedDir)) {
+    fs.rmSync(tempExtractedDir, { recursive: true, force: true });
+  }
+  
   console.log('\n======================================================');
   console.log('🎉 Windows ARM64 Native Modao Client Built Successfully!');
   console.log(`Output Directory: ${distDir}`);
+  console.log(`Application Version: ${modaoVersion}`);
   console.log('======================================================\n');
 }
 

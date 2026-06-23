@@ -27,33 +27,34 @@ Electron 架构的应用极其适合在 ARM 平台上作跨架构重构，它分
 
 ## 🚀 快速开始
 
-### 1. 准备工作
+### 🚀 快速构建步骤
+
+本项目已支持 **全自动检测、在线抓取与下载** 构建！你甚至**不需要**手动下载墨刀的官方包，脚本会替你搞定一切。
+
+#### 1. 克隆本项目
 确保你的设备上已安装了 Node.js（v18+）。
+```bash
+git clone https://cnb.cool/liuxiaofengone/modao_cc_windows_arm64.git
+cd modao_cc_windows_arm64
+```
 
-1. 克隆本项目：
-   ```bash
-   git clone https://cnb.cool/liuxiaofengone/modao_cc_windows_arm64.git
-   cd modao_cc_windows_arm64
-   ```
-2. 获取原版墨刀 `app.asar` 核心文件：
-   * **官方 x86 绿色运行包下载链接**：[modao-win32-ia32-1.5.4.zip](https://cdn-release.modao.cc/desktop/prod-1.5.4/win32/modao-win32-ia32-1.5.4.zip)
-   * 下载并解压缩后，在其 `resources/` 目录下即可找到 `app.asar`。
-   * 本构建脚本在运行时，会默认自动检测同级目录下的 `../modao-win32/modao-win32-ia32-1.5.4/resources/app.asar` 路径。
-   * **或者**，你也可以直接将这个提取出来的 `app.asar` 文件复制到本项目根目录下。
+#### 2. 安装依赖并运行构建
+```bash
+# 安装打包依赖
+npm install
 
-### 2. 一键构建
+# 运行全自动构建
+npm run build
+```
 
-1. 安装本地打包和资源修改依赖：
-   ```bash
-   npm install
-   ```
-2. 运行构建脚本：
-   ```bash
-   npm run build
-   ```
+> 💡 **全自动构建逻辑**：
+> 1. 运行 `npm run build` 时，脚本会首先检测本地是否存在 `app.asar`（支持自动检索同级目录下的官方 x86 解压文件夹，或项目根目录下的 `app.asar`）。
+> 2. 若本地未检测到，脚本会**自动访问墨刀官方下载页面**，抓取并下载最新的 Windows x86 官方安装包链接。
+> 3. 下载完成后，脚本会通过内存解包技术，**精准且仅解压**包内的 `app.asar` 核心文件与 `version` 版本声明，无需等待整个大压缩包的完全解压缩。
+> 4. 随后，脚本自动探测出所需的 Electron 运行时版本，从 `npmmirror`（淘宝镜像）高速下载原生的 Windows ARM64 运行时。
+> 5. 自动完成文件合并、高规格 `.ico` 图标及最新软件版本元数据的注入。
 
-### 3. 构建结果
-构建完成后，脚本会自动从 `npmmirror`（淘宝镜像）高速下载 Electron v32.1.0 ARM64 的原生 Windows 运行时，把 `app.asar` 合并进入，并使用 `rcedit` 动态修改可执行文件。
+### 📦 构建结果
 
 最终，会在当前目录下生成：
 `./dist/modao-win32-arm64/`
