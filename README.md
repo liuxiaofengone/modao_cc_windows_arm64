@@ -32,9 +32,17 @@ Electron 架构的应用极其适合在 ARM 平台上作跨架构重构，它分
 本项目已支持 **全自动检测、在线抓取与下载** 构建！你甚至**不需要**手动下载墨刀的官方包，脚本会替你搞定一切。
 
 #### 1. 克隆本项目
-确保你的设备上已安装了 Node.js（v18+）。
+
+你可以从以下任意一个平台克隆本仓库到本地：
+
 ```bash
+# 从 GitHub 克隆
+git clone https://github.com/liuxiaofengone/modao_cc_windows_arm64.git
+
+# 或者从 CNB 克隆
 git clone https://cnb.cool/liuxiaofengone/modao_cc_windows_arm64.git
+
+# 进入目录
 cd modao_cc_windows_arm64
 ```
 
